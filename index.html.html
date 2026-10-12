@@ -46,9 +46,9 @@ h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
 .cues li{margin:5px 0}
 .warn{border-left:3px solid var(--warn);background:rgba(216,176,112,.1);color:#f0dcc0;border-radius:8px;padding:9px 12px;font-size:14px;margin:0 0 14px}
 .place{font-size:14px;color:var(--dim);background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:9px 12px;margin:0 0 14px}
-.sets{display:flex;gap:8px;flex-wrap:wrap}
-.slot{display:flex;flex-direction:column;gap:6px}
-.set{font:inherit;cursor:pointer;min-width:84px;text-align:center;background:var(--surface-2);color:var(--dim);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:transform .08s,background .18s,border-color .18s,color .18s}
+.sets{display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.slot{display:flex;flex-direction:row;gap:6px;align-items:stretch;flex:0 0 auto}
+.set{font:inherit;cursor:pointer;min-width:96px;text-align:center;background:var(--surface-2);color:var(--dim);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:transform .08s,background .18s,border-color .18s,color .18s}
 .set small{display:block;font-size:11px;opacity:.75}
 .set b{display:block;font-family:var(--mono);font-size:16px;color:var(--text)}
 .set:active{transform:scale(.96)}
@@ -56,7 +56,7 @@ h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
 .set.done{background:rgba(127,209,168,.16);border-color:rgba(127,209,168,.55);color:var(--accent)}
 .set.done b{color:var(--accent)}
 .set.done b::after{content:" ✓"}
-.rep{font-family:var(--mono);font-size:14px;text-align:center;width:100%;min-width:84px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 7px}
+.rep{font-family:var(--mono);font-size:14px;text-align:center;width:62px;min-width:62px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 7px}
 .count{margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--dim)}
 .count.all{color:var(--accent)}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
@@ -83,6 +83,15 @@ h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
 .empty{color:var(--dim);font-size:14px}
 .foot{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim);font-size:14px}
 .reset{margin-top:14px;font:inherit;font-size:14px;color:var(--dim);background:none;border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+.overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,13,15,.72);backdrop-filter:blur(4px);padding:20px}
+.overlay-card{width:100%;max-width:340px;background:var(--surface);border:1px solid rgba(127,209,168,.45);
+  border-radius:20px;padding:22px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.overlay-kick{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.overlay-name{color:var(--dim);font-size:14px;margin-top:6px}
+.overlay-time{font-family:var(--mono);font-size:64px;line-height:1.05;font-weight:700;margin:10px 0 14px;color:var(--text)}
+.overlay .timerbar{height:4px;border-radius:3px;margin-bottom:18px}
+.overlay-stop{width:100%;justify-content:center;padding:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -103,10 +112,14 @@ h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
     закроешь страницу. Прогресс хранится в твоём Telegram-аккаунте.
   </p>
 
-  <div class="card" id="timerCard" style="display:none;margin-top:16px">
-    <h3 id="timerHead">Отдых</h3>
-    <div class="timerbar"><i id="timerFill" style="width:100%"></i></div>
-    <div class="actions"><button class="btn timer on" id="timerStop">Остановить</button></div>
+  <div class="overlay" id="timerCard" style="display:none">
+    <div class="overlay-card">
+      <div class="overlay-kick">Отдых</div>
+      <div class="overlay-name" id="timerName">упражнение</div>
+      <div class="overlay-time" id="timerHead">0:00</div>
+      <div class="timerbar"><i id="timerFill" style="width:100%"></i></div>
+      <button class="btn overlay-stop" id="timerStop">Стоп</button>
+    </div>
   </div>
 
   <div class="weeks" id="placeRow"></div>
@@ -455,14 +468,24 @@ h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
   function renderTimer(){
     var card = document.getElementById("timerCard");
     if (!timer){ card.style.display = "none"; return; }
-    card.style.display = "block";
-    document.getElementById("timerHead").textContent = "Отдых: " + fmt(timer.left);
+    card.style.display = "flex";
+    document.getElementById("timerHead").textContent = fmt(timer.left);
+    document.getElementById("timerName").textContent = timer.name || "упражнение";
     document.getElementById("timerFill").style.width = (timer.left / timer.total * 100) + "%";
+  }
+
+  function nameOf(id){
+    var found = "упражнение";
+    SECTIONS.forEach(function(sec){
+      if (sec.single && sec.single.id === id){ found = sec.single.label; }
+      (sec.exercises || []).forEach(function(ex){ if (ex.id === id){ found = ex.name; } });
+    });
+    return found;
   }
 
   function startTimer(id, rest){
     if (timer && timer.id === id){ timer = null; }
-    else { timer = { id: id, total: rest, left: rest }; }
+    else { timer = { id: id, total: rest, left: rest, name: nameOf(id) }; }
     if (tick){ clearInterval(tick); tick = null; }
     if (timer){
       tick = setInterval(function(){
@@ -493,7 +516,7 @@ h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
     if (!next){ return; }
     state.sets[next] = true;
     scheduleSave();
-    timer = { id: exId, total: rest, left: rest };
+    timer = { id: exId, total: rest, left: rest, name: nameOf(exId) };
     render();
     var input = document.getElementById("reps-" + next);
     if (input){ input.focus(); }
