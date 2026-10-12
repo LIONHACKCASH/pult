@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пульт тренировки: день 1</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --base:#0d1a1d; --surface:#13252a; --surface-2:#172c32; --line:#1e363c;
+  --text:#e9f2ee; --dim:#8fa5a4; --accent:#7fd1a8; --warn:#d8b070;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  margin:0;background:radial-gradient(900px 420px at 12% -10%,#1a3238 0%,transparent 70%),var(--base);
+  color:var(--text);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  padding-bottom:64px;
+}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+.bar{position:sticky;top:0;z-index:20;background:rgba(13,26,29,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar-in{max-width:720px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.day{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.title{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.prog{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:5px 10px;white-space:nowrap}
+.prog b{color:var(--accent)}
+.rail{height:3px;background:var(--line)}
+.rail i{display:block;height:100%;background:var(--accent);transition:width .35s cubic-bezier(.2,.8,.2,1)}
+.lede{padding:22px 0 6px;color:var(--dim);font-size:15px}
+.lede b{color:var(--text)}
+.weeks{display:flex;gap:8px;margin:14px 0 4px;flex-wrap:wrap}
+.week{font:inherit;font-size:14px;cursor:pointer;background:var(--surface);color:var(--dim);border:1px solid var(--line);border-radius:10px;padding:9px 14px}
+.week[aria-pressed="true"]{color:var(--base);background:var(--accent);border-color:var(--accent);font-weight:700}
+.note{color:var(--dim);font-size:13px;margin:8px 0 0}
+.sec{margin-top:30px}
+.sec-head{display:flex;align-items:baseline;gap:10px}
+.sec h2{margin:0;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.sec-time{font-family:var(--mono);font-size:12px;color:var(--dim);margin-left:auto}
+.card{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card.done{border-color:rgba(127,209,168,.45)}
+h3{margin:0 0 10px;font-size:19px;letter-spacing:-.015em}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.dose{font-family:var(--mono);font-size:13px;color:var(--accent);background:rgba(127,209,168,.12);border:1px solid rgba(127,209,168,.38);border-radius:999px;padding:4px 10px}
+.tag{font-size:13px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.cues{margin:0 0 14px;padding-left:20px}
+.cues li{margin:5px 0}
+.warn{border-left:3px solid var(--warn);background:rgba(216,176,112,.1);color:#f0dcc0;border-radius:8px;padding:9px 12px;font-size:14px;margin:0 0 14px}
+.place{font-size:14px;color:var(--dim);background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:9px 12px;margin:0 0 14px}
+.sets{display:flex;gap:8px;flex-wrap:wrap}
+.slot{display:flex;flex-direction:column;gap:6px}
+.set{font:inherit;cursor:pointer;min-width:84px;text-align:center;background:var(--surface-2);color:var(--dim);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:transform .08s,background .18s,border-color .18s,color .18s}
+.set small{display:block;font-size:11px;opacity:.75}
+.set b{display:block;font-family:var(--mono);font-size:16px;color:var(--text)}
+.set:active{transform:scale(.96)}
+.set.next{border-color:rgba(127,209,168,.55)}
+.set.done{background:rgba(127,209,168,.16);border-color:rgba(127,209,168,.55);color:var(--accent)}
+.set.done b{color:var(--accent)}
+.set.done b::after{content:" ✓"}
+.rep{font-family:var(--mono);font-size:14px;text-align:center;width:100%;min-width:84px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 7px}
+.count{margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.count.all{color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:15px;text-decoration:none;cursor:pointer;background:var(--surface-2);color:var(--text);border:1px solid #2b4b53;border-radius:12px;padding:11px 14px}
+.btn:active{transform:translateY(1px)}
+.btn .ic{color:var(--accent)}
+.btn.timer{font-family:var(--mono)}
+.btn.timer.on{border-color:var(--accent);color:var(--accent)}
+.timerbar{height:2px;background:var(--line);border-radius:2px;margin-top:10px;overflow:hidden}
+.timerbar i{display:block;height:100%;background:var(--accent);transition:width .95s linear}
+.mark{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;font-size:15px;color:var(--dim);background:none;border:0;border-bottom:1px solid rgba(30,54,60,.7);padding:11px 2px;cursor:pointer}
+.mark:last-child{border-bottom:0}
+.mark .bx{width:22px;height:22px;flex:0 0 22px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);position:relative}
+.mark.done{color:var(--accent)}
+.mark.done .bx{background:rgba(127,209,168,.2);border-color:rgba(127,209,168,.6)}
+.mark.done .bx::after{content:"✓";position:absolute;left:4px;top:-2px;font-size:16px;color:var(--accent)}
+.log{display:grid;grid-template-columns:1fr 96px;gap:10px 12px;align-items:center}
+.log label{color:var(--dim);font-size:15px}
+.log input{font-family:var(--mono);font-size:16px;text-align:center;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+.hist{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.hist h4{margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.histrow{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--dim);padding:4px 0}
+.histrow b{color:var(--text);font-weight:600}
+.empty{color:var(--dim);font-size:14px}
+.foot{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim);font-size:14px}
+.reset{margin-top:14px;font:inherit;font-size:14px;color:var(--dim);background:none;border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="bar-in">
+    <span class="day">Месяц 1 · День 1</span>
+    <span class="title">Понедельник: жим и навык</span>
+    <span class="prog" id="prog"><b>0</b>/0</span>
+  </div>
+  <div class="rail"><i id="rail" style="width:0"></i></div>
+</div>
+
+<div class="wrap">
+  <p class="lede">
+    45-60 минут, начало в 17:00. <b>Работаем не в отказ:</b> подход заканчивается, когда в запасе
+    остаётся два повтора. Нажал подход: он залипает зелёным, и отметка остаётся, даже если
+    закроешь страницу. Прогресс хранится в твоём Telegram-аккаунте.
+  </p>
+
+  <div class="card" id="timerCard" style="display:none;margin-top:16px">
+    <h3 id="timerHead">Отдых</h3>
+    <div class="timerbar"><i id="timerFill" style="width:100%"></i></div>
+    <div class="actions"><button class="btn timer on" id="timerStop">Остановить</button></div>
+  </div>
+
+  <div class="weeks" id="placeRow"></div>
+  <p class="note" id="placeNote"></p>
+
+  <div class="weeks" id="weekRow"></div>
+  <p class="note" id="weekNote"></p>
+
+  <div id="sections"></div>
+
+  <div class="sec">
+    <div class="sec-head"><h2>Отметки дня</h2><span class="sec-time">без них набор не идёт</span></div>
+    <div class="card" id="marks"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head"><h2>Итог дня</h2><span class="sec-time">записать цифры</span></div>
+    <div class="card">
+      <div class="log">
+        <label for="log-pull">Подтягивания чисто, максимум</label>
+        <input id="log-pull" inputmode="numeric">
+        <label for="log-dips">Отжимания на брусьях, максимум</label>
+        <input id="log-dips" inputmode="numeric">
+        <label for="log-hold">Удержание колен в упоре, секунд</label>
+        <input id="log-hold" inputmode="numeric">
+      </div>
+      <div class="actions"><button class="btn" id="saveResult">Записать в историю</button></div>
+      <div class="hist">
+        <h4>История</h4>
+        <div id="history"></div>
+      </div>
+    </div>
+    <button class="reset" id="resetDay">Сбросить отметки дня</button>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head"><h2>Напоминания</h2><span class="sec-time">на телефоне</span></div>
+    <div class="card">
+      <p class="note" style="margin-top:0">
+        Поставь будильники в телефоне: 07:30 завтрак, 13:00 обед, 16:30 тренировка, 20:00 ужин,
+        22:45 отбой. Три повтора подряд не нужны, одного сигнала хватит.
+      </p>
+    </div>
+  </div>
+
+  <div class="foot">
+    Сделал минимум: день в зачёт. Сделал только якорь на 15 минут: тоже день в зачёт. Главное
+    правило месяца: никогда два пропуска подряд.
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if (TG && TG.ready) { TG.ready(); }
+  if (TG && TG.expand) { TG.expand(); }
+
+  var KEY = "dp-day1-v1";
+
+  var PLACE_NOTE = {
+    street: "На улице: разминайся дома и выходи уже разогретым, перекладина холодная, перчатки или полотенце под хват. Отдых между подходами короче, не стой мокрым.",
+    home: "Дома: телефон вертикально на стул, стулья на нескользящий коврик, окно открыто. Брусья делаются на двух стульях, перекладина в проёме."
+  };
+
+  var SECTIONS = [
+    { id:"warmup", title:"Разминка", time:"10 минут", note:"Запястья греются первыми и всегда.",
+      single:{ id:"w1", label:"Разминка целиком", text:[
+        "Круги запястьями: 20 в каждую сторону",
+        "Ладонь-тыл: 15 раз, мягко, без боли",
+        "Отжимания на пальцах: 2 подхода по 10",
+        "Круги прямыми руками: 15 вперёд и 15 назад",
+        "Протракция лопаток в упоре: 2 подхода по 10"
+      ]}},
+    { id:"skill", title:"Навык, пока свежий", time:"8 минут", exercises:[
+      { id:"lean", name:"Упор на прямых руках с протракцией", sets:3, reps:10, unit:"сек", rest:45,
+        cues:["Ладони строго под плечами, локти полностью прямые",
+              "Лопатки уводишь вперёд и вниз, спина не проваливается",
+              "Держишь ровно 10 секунд, дыхание не задерживаешь",
+              "Дрожь в руках это норма, падение в локти нет"],
+        tutors:[{label:"Тутор: подготовка к горизонту", url:"https://www.tiktok.com/@pro_workout/video/7667226771674189063"}] },
+      { id:"pllean", name:"Наклон в упоре (planche lean)", sets:3, reps:9, unit:"сек", rest:50,
+        cues:["Упор на прямых руках, стопы на носках",
+              "Медленно сдвигаешь вес вперёд, пока плечи не окажутся над ладонями",
+              "Тело одной линией, таз не провисает и не поднимается",
+              "Секунду замираешь и плавно возвращаешься назад"],
+        warn:"Спина идёт дугой: наклон слишком сильный. Уменьши наклон, локти держи прямыми." }
+    ]},
+    { id:"strength", title:"Сила", time:"25 минут", exercises:[
+      { id:"dips", name:"Отжимания на брусьях", sets:3, reps:5, unit:"раз", rest:90,
+        cues:["Ладони на опорах, корпус строго вертикально",
+              "Локти идут вдоль тела, не разлетаются в стороны",
+              "Опускаешься до прямого угла в локте и не ниже",
+              "Вниз 2 секунды, вверх мощно"],
+        warn:"Плечо отзывается: уменьшай глубину. Боль, а не усталость, значит упражнение закончено.",
+        place:{street:"На площадке: настоящие брусья. Хват широкий, плечи не заваливай вперёд.",
+               home:"Дома: два стула спинками друг к другу или край стола и стул. Глубину контролируй жёстче."},
+        tutors:[{label:"Тутор: брусья", url:"https://www.tiktok.com/@synturnikov/video/7632597073900211477"},
+                {label:"Ещё разбор", url:"https://www.tiktok.com/@vyacheslav.bull/video/7634522680900865288"}] },
+      { id:"pushupelev", name:"Отжимания с ногами на возвышении", sets:3, reps:8, unit:"раз", rest:75,
+        cues:["Ладони под плечами, стопы выше уровня ладоней",
+              "Локти назад под 45 градусов, не в стороны",
+              "Вниз 2-3 секунды, грудь почти до пола",
+              "Ягодицы и пресс напряжены, таз не провисает"],
+        place:{street:"На площадке: стопы на скамье или низкой перекладине, ладони на асфальте.",
+               home:"Дома: стопы на диване или стуле у стены, ладони на полу."},
+        tutors:[{label:"Тутор: угол локтей", url:"https://www.tiktok.com/@_azamat_fit_coach_/video/7691320562572070177"}] },
+      { id:"pushup", name:"Отжимания обычные", sets:3, reps:8, unit:"раз", rest:60,
+        cues:["Ладони чуть шире плеч, пальцы растопырены",
+              "Плечи не подтягиваешь к ушам",
+              "Лопатки сводишь на спуске, разводишь на подъёме",
+              "Корпус одной линией, поясница не прогибается"],
+        tutors:[{label:"Тутор: отжимания", url:"https://www.tiktok.com/@aske_797/video/7635236694563769613"}] },
+      { id:"pullup", name:"Подтягивания", sets:3, reps:4, unit:"раз", rest:90,
+        cues:["Хват чуть шире плеч, большие пальцы сверху",
+              "Перед повтором опусти лопатки вниз, плечи уходят от ушей",
+              "Тянешь грудь к перекладине, локти вниз и назад",
+              "Вниз 3 секунды, без раскачки, до полного выпрямления рук"],
+        warn:"Раскачиваешься: подход закончен. Лучше меньше, но чисто.",
+        place:{street:"На площадке: перекладина, хват в перчатках. Отдых не затягивай, чтобы не остыть.",
+               home:"Дома: турник в проёме. Если нет, австралийские под столом, ноги на полу, тело прямой линией."},
+        tutors:[{label:"Тутор: техника", url:"https://www.tiktok.com/@iluhamaxx/video/7655286690294140181"},
+                {label:"Если тяжело", url:"https://www.tiktok.com/@zemlianskyi/video/7662714648453516564"},
+                {label:"До первого повтора", url:"https://www.tiktok.com/@umka__fit/video/7683659287821847840"}] }
+    ]},
+    { id:"core", title:"Пресс", exercises:[
+      { id:"hollow", name:"Hollow body", sets:3, reps:20, unit:"сек", rest:45,
+        cues:["Лёг на спину, поясница прижата к полу",
+              "Руки за голову, носки и лопатки оторваны от пола",
+              "Дышишь ровно, поясница не отрывается ни на секунду",
+              "Отрывается: согни ноги или подними их выше"] }
+    ]},
+    { id:"shoulder", title:"Плечевой блок, каждый раз", time:"5 минут",
+      note:"Это не разминка и не «если будет время». Плечи слабое место, блок идёт всегда.",
+      single:{ id:"sh1", label:"Плечевой блок целиком", text:[
+        "Внешние вращения с бутылкой 0,5 л: 3 по 12 на каждую руку",
+        "Скольжения руками по стене: 3 по 10",
+        "YTW лёжа на животе: 3 по 8",
+        "Лопаточные подтягивания в висе: 3 по 10",
+        "Растяжка груди в проёме: 2 по 30 секунд на сторону"
+      ]}},
+    { id:"stretch", title:"Растяжка в конце", time:"5 минут",
+      single:{ id:"st1", label:"Растяжка целиком", text:[
+        "Запястья мягко: 60 секунд",
+        "Грудь в проёме: 60 секунд",
+        "Расслабленный вис на перекладине: 60 секунд",
+        "Бёдра: по 30 секунд на сторону"
+      ]}},
+    { id:"anchor", title:"Утренний якорь", time:"7:15, 15 минут",
+      note:"Делается каждый день, даже в день отдыха. Это то, что не даёт дисциплине порваться.",
+      single:{ id:"an1", label:"Якорь целиком", text:[
+        "Вис на перекладине: 3 по 30-60 секунд",
+        "Подбородок к шее: 3 по 10, по 3 секунды держать",
+        "Скольжения руками по стене: 3 по 10",
+        "Растяжка груди в проёме: 2 по 30 секунд на сторону",
+        "Ягодичный мостик: 3 по 15",
+        "Dead bug: 3 по 10"
+      ]}},
+    { id:"flex", title:"Гибкость", time:"15 минут",
+      note:"Только на разогретых мышцах, после тренировки или вечером. Без пружин.",
+      single:{ id:"fl1", label:"Гибкость целиком", text:[
+        "Продольный шпагат: выпад 3 по 45 секунд на сторону, наклон к прямой ноге 3 по 45, голубь 3 по 45, шпагат на блоках 3 по 30",
+        "Поперечный: бабочка 3 по 60, лягушка 3 по 60, боковой выпад 3 по 45, панкейк 3 по 45",
+        "Спина и плечи: складка по стене 3 по 30, прогиб через валик 3 по 30, мостик 3 по 20-30 секунд, выкруты 2 по 10"
+      ]}}
+  ];
+
+  var DAY_MARKS = [
+    { id:"m-food", label:"Еда: 4 приёма + молоко перед сном" },
+    { id:"m-sleep", label:"Сон 8 часов, отбой 23:00" },
+    { id:"m-posture", label:"Осанка 10 минут" },
+    { id:"m-water", label:"Вода 2-2,5 литра" },
+    { id:"m-sweet", label:"Без сладкого, кроме ложки мёда" }
+  ];
+
+  var WEEK_NOTES = {
+    1:"Неделя 1: нижняя граница повторов, не в отказ, запас 2 повтора.",
+    2:"Неделя 2: те же дозы, добавляешь по одному повтору, если в запасе оставалось больше двух.",
+    3:"Неделя 3: плюс один подход и плюс один повтор к базе.",
+    4:"Неделя 4: полный объём, в конце недели зачёт по числам."
+  };
+
+  var state = { week:1, place:"street", sets:{}, reps:{}, marks:{}, log:{}, history:[] };
+  var timer = null;
+  var tick = null;
+  var saveTimer = null;
+
+  function readStore(cb){
+    if (TG && TG.CloudStorage && TG.CloudStorage.getItem){
+      TG.CloudStorage.getItem(KEY, function(err, value){ cb(!err && value ? value : null); });
+    } else {
+      try { cb(window.localStorage.getItem(KEY)); } catch(e){ cb(null); }
+    }
+  }
+
+  function writeStore(value){
+    var payload = value;
+    if (payload.length > 4000 && state.history.length > 3){
+      var trimmed = JSON.parse(payload);
+      trimmed.history = trimmed.history.slice(0,3);
+      payload = JSON.stringify(trimmed);
+    }
+    if (TG && TG.CloudStorage && TG.CloudStorage.setItem){
+      TG.CloudStorage.setItem(KEY, payload, function(){});
+    } else {
+      try { window.localStorage.setItem(KEY, payload); } catch(e){}
+    }
+  }
+
+  function scheduleSave(){
+    if (saveTimer) { clearTimeout(saveTimer); }
+    saveTimer = setTimeout(function(){
+      writeStore(JSON.stringify(state));
+    }, 700);
+  }
+
+  function dose(ex){
+    var extra = state.week >= 3 ? 1 : 0;
+    return { sets: ex.sets + extra, reps: ex.reps + extra };
+  }
+
+  function keysFor(ex){
+    var d = dose(ex), out = [], i;
+    for (i = 1; i <= d.sets; i += 1){ out.push(ex.id + "-" + i); }
+    return out;
+  }
+
+  function activeKeys(){
+    var out = [];
+    SECTIONS.forEach(function(sec){
+      if (sec.single){ out.push(sec.single.id); }
+      (sec.exercises || []).forEach(function(ex){ out = out.concat(keysFor(ex)); });
+    });
+    DAY_MARKS.forEach(function(m){ out.push(m.id); });
+    return out;
+  }
+
+  function isDone(key){ return Boolean(state.sets[key] || state.marks[key]); }
+
+  function fmt(sec){
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ":" + (s < 10 ? "0" + s : s);
+  }
+
+  function esc(text){
+    return String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function render(){
+    var sectionsHost = document.getElementById("sections");
+    sectionsHost.innerHTML = SECTIONS.map(function(sec){
+      var head = '<div class="sec-head"><h2>' + esc(sec.title) + '</h2>' +
+        (sec.time ? '<span class="sec-time">' + esc(sec.time) + '</span>' : '') + '</div>';
+      var note = sec.note ? '<p class="note">' + esc(sec.note) + '</p>' : '';
+      var body = '';
+
+      if (sec.single){
+        var doneSingle = isDone(sec.single.id);
+        body += '<div class="card' + (doneSingle ? ' done' : '') + '">' +
+          '<ul class="cues">' + sec.single.text.map(function(line){
+            return '<li>' + esc(line) + '</li>'; }).join('') + '</ul>' +
+          '<div class="sets"><button class="set' + (doneSingle ? ' done' : '') +
+          '" data-toggle="' + sec.single.id + '"><small>отметка</small><b>' +
+          esc(sec.single.label) + '</b></button></div></div>';
+      }
+
+      (sec.exercises || []).forEach(function(ex){
+        var d = dose(ex), keys = keysFor(ex);
+        var doneHere = keys.filter(function(k){ return state.sets[k]; }).length;
+        var nextKey = null, i;
+        for (i = 0; i < keys.length; i += 1){ if (!state.sets[keys[i]]){ nextKey = keys[i]; break; } }
+        var placeLine = ex.place ? ex.place[state.place] : '';
+
+        body += '<div class="card' + (doneHere === keys.length ? ' done' : '') + '">' +
+          '<h3>' + esc(ex.name) + '</h3><div class="meta">' +
+          '<span class="dose">' + d.sets + ' × ' + d.reps + ' ' + esc(ex.unit) + '</span>' +
+          (ex.unit === "раз" ? '<span class="tag">запас 2 повтора</span>' : '') +
+          '<span class="tag">отдых ' + ex.rest + ' сек</span></div>' +
+          '<ul class="cues">' + ex.cues.map(function(c){ return '<li>' + esc(c) + '</li>'; }).join('') + '</ul>' +
+          (ex.warn ? '<div class="warn">' + esc(ex.warn) + '</div>' : '') +
+          (placeLine ? '<div class="place">' + esc(placeLine) + '</div>' : '') +
+          '<div class="sets">' + keys.map(function(key, idx){
+            var cls = state.sets[key] ? ' done' : (key === nextKey ? ' next' : '');
+            return '<div class="slot"><button class="set' + cls + '" data-toggle="' + key + '">' +
+              '<small>подход ' + (idx + 1) + '</small><b>' + d.reps +
+              (ex.unit === "сек" ? ' сек' : '') + '</b></button>' +
+              '<input class="rep" id="reps-' + key + '" inputmode="numeric" placeholder="' +
+              (ex.unit === "сек" ? "сек" : "факт") + '" data-rep="' + key + '" value="' +
+              esc(state.reps[key] || '') + '"></div>';
+          }).join('') + '</div>' +
+          '<div class="count' + (doneHere === keys.length ? ' all' : '') + '">' + doneHere + ' из ' +
+          d.sets + ' подходов' + (doneHere === keys.length ? ': готово' : '') + '</div>' +
+          '<div class="actions">' +
+            '<button class="btn" data-less="' + ex.id + '">Сделал меньше</button>' +
+            '<button class="btn timer' + (timer && timer.id === ex.id ? ' on' : '') +
+              '" data-timer="' + ex.id + '" data-rest="' + ex.rest + '">' +
+              (timer && timer.id === ex.id ? 'Отдых ' + fmt(timer.left) : 'Отдых ' + ex.rest + ' сек') +
+            '</button>' +
+            (ex.tutors || []).map(function(t){
+              return '<a class="btn" href="' + t.url + '" target="_blank" rel="noopener noreferrer">' +
+                '<span class="ic">▶</span> ' + esc(t.label) + '</a>'; }).join('') +
+          '</div></div>';
+      });
+
+      return '<section class="sec">' + head + note + body + '</section>';
+    }).join('');
+
+    document.getElementById("marks").innerHTML = DAY_MARKS.map(function(m){
+      return '<button class="mark' + (state.marks[m.id] ? ' done' : '') + '" data-mark="' + m.id +
+        '"><span class="bx"></span>' + esc(m.label) + '</button>';
+    }).join('');
+
+    document.getElementById("placeRow").innerHTML =
+      '<button class="week" data-place="street" aria-pressed="' + (state.place === "street") + '">Площадка</button>' +
+      '<button class="week" data-place="home" aria-pressed="' + (state.place === "home") + '">Дома</button>';
+    document.getElementById("placeNote").textContent = PLACE_NOTE[state.place];
+
+    document.getElementById("weekRow").innerHTML = [1,2,3,4].map(function(w){
+      return '<button class="week" data-week="' + w + '" aria-pressed="' + (state.week === w) +
+        '">Неделя ' + w + '</button>';
+    }).join('');
+    document.getElementById("weekNote").textContent = WEEK_NOTES[state.week];
+
+    ["pull","dips","hold"].forEach(function(field){
+      var el = document.getElementById("log-" + field);
+      if (el) { el.value = state.log[field] || ""; }
+    });
+
+    document.getElementById("history").innerHTML = state.history.length
+      ? state.history.map(function(row){
+          return '<div class="histrow"><b>' + esc(row.date) + '</b><span>подтягивания ' +
+            esc(row.pull) + '</span><span>брусья ' + esc(row.dips) + '</span><span>удержание ' +
+            esc(row.hold) + ' сек</span></div>';
+        }).join('')
+      : '<p class="empty">Пока пусто. Записал цифры: они появятся здесь.</p>';
+
+    var all = activeKeys();
+    var done = all.filter(isDone).length;
+    document.getElementById("prog").innerHTML = '<b>' + done + '</b>/' + all.length;
+    document.getElementById("rail").style.width = (all.length ? Math.round(done / all.length * 100) : 0) + "%";
+
+    renderTimer();
+  }
+
+  function renderTimer(){
+    var card = document.getElementById("timerCard");
+    if (!timer){ card.style.display = "none"; return; }
+    card.style.display = "block";
+    document.getElementById("timerHead").textContent = "Отдых: " + fmt(timer.left);
+    document.getElementById("timerFill").style.width = (timer.left / timer.total * 100) + "%";
+  }
+
+  function startTimer(id, rest){
+    if (timer && timer.id === id){ timer = null; }
+    else { timer = { id: id, total: rest, left: rest }; }
+    if (tick){ clearInterval(tick); tick = null; }
+    if (timer){
+      tick = setInterval(function(){
+        if (!timer){ clearInterval(tick); tick = null; return; }
+        timer.left -= 1;
+        if (timer.left <= 0){
+          if (TG && TG.HapticFeedback && TG.HapticFeedback.notificationOccurred){
+            TG.HapticFeedback.notificationOccurred("success");
+          } else if (navigator.vibrate){ navigator.vibrate(180); }
+          timer = null;
+          clearInterval(tick);
+          tick = null;
+        }
+        renderTimer();
+      }, 1000);
+    }
+    render();
+  }
+
+  function markLess(exId, rest){
+    var ex = null, sec = null;
+    SECTIONS.forEach(function(s){
+      (s.exercises || []).forEach(function(item){ if (item.id === exId){ ex = item; sec = s; } });
+    });
+    if (!ex){ return; }
+    var keys = keysFor(ex), next = null, i;
+    for (i = 0; i < keys.length; i += 1){ if (!state.sets[keys[i]]){ next = keys[i]; break; } }
+    if (!next){ return; }
+    state.sets[next] = true;
+    scheduleSave();
+    timer = { id: exId, total: rest, left: rest };
+    render();
+    var input = document.getElementById("reps-" + next);
+    if (input){ input.focus(); }
+  }
+
+  document.addEventListener("click", function(event){
+    var el = event.target.closest("[data-toggle],[data-mark],[data-place],[data-week],[data-timer],[data-less],[data-rep]");
+    if (!el){ return; }
+
+    if (el.hasAttribute("data-toggle")){
+      var key = el.getAttribute("data-toggle");
+      state.sets[key] = !state.sets[key];
+      scheduleSave(); render(); return;
+    }
+    if (el.hasAttribute("data-mark")){
+      var mark = el.getAttribute("data-mark");
+      state.marks[mark] = !state.marks[mark];
+      scheduleSave(); render(); return;
+    }
+    if (el.hasAttribute("data-place")){
+      state.place = el.getAttribute("data-place");
+      scheduleSave(); render(); return;
+    }
+    if (el.hasAttribute("data-week")){
+      state.week = Number(el.getAttribute("data-week"));
+      scheduleSave(); render(); return;
+    }
+    if (el.hasAttribute("data-timer")){
+      startTimer(el.getAttribute("data-timer"), Number(el.getAttribute("data-rest"))); return;
+    }
+    if (el.hasAttribute("data-less")){
+      markLess(el.getAttribute("data-less"), 90); return;
+    }
+  });
+
+  document.addEventListener("input", function(event){
+    var el = event.target;
+    if (el && el.hasAttribute && el.hasAttribute("data-rep")){
+      var key = el.getAttribute("data-rep");
+      state.reps[key] = String(el.value).replace(/[^0-9]/g, "").slice(0, 3);
+      scheduleSave();
+      return;
+    }
+    if (el && el.id && el.id.indexOf("log-") === 0){
+      var field = el.id.replace("log-", "");
+      state.log[field] = String(el.value).replace(/[^0-9]/g, "").slice(0, 4);
+      scheduleSave();
+    }
+  });
+
+  document.getElementById("timerStop").addEventListener("click", function(){
+    timer = null;
+    if (tick){ clearInterval(tick); tick = null; }
+    renderTimer();
+    render();
+  });
+
+  document.getElementById("saveResult").addEventListener("click", function(){
+    var entry = {
+      date: new Date().toLocaleDateString("ru-RU"),
+      pull: state.log.pull || "-",
+      dips: state.log.dips || "-",
+      hold: state.log.hold || "-"
+    };
+    state.history = [entry].concat(state.history).slice(0, 8);
+    writeStore(JSON.stringify(state));
+    render();
+  });
+
+  document.getElementById("resetDay").addEventListener("click", function(){
+    state.sets = {}; state.marks = {}; state.reps = {};
+    writeStore(JSON.stringify(state));
+    render();
+  });
+
+  readStore(function(raw){
+    if (raw){
+      try {
+        var parsed = JSON.parse(raw);
+        state.week = parsed.week || 1;
+        state.place = parsed.place === "home" ? "home" : "street";
+        state.sets = parsed.sets || {};
+        state.reps = parsed.reps || {};
+        state.marks = parsed.marks || {};
+        state.log = parsed.log || {};
+        state.history = parsed.history || [];
+      } catch(e){ /* битые данные: начинаем с чистого листа */ }
+    }
+    render();
+  });
+})();
+</script>
+</body>
+</html>
